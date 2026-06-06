@@ -169,6 +169,23 @@ class TestChatCommands(unittest.TestCase):
 
 
 class TestBuildTurnInput(unittest.TestCase):
+    def test_hard_policies_reach_the_prompt(self):
+        # Regression: build_turn_input read contract.get("contract", {}), a
+        # wrapper key the contract JSON does not have, so hard_policies came
+        # out empty and the safety policies never entered the prompt via the
+        # chat loop. They must be present and non-empty.
+        state = make_state(tmp=None)
+        contents = build_turn_input(state, "hola")
+        self.assertTrue(contents["hard_policies"].strip(),
+                        "hard_policies slot is empty")
+        # Sanity: a known policy phrase from the contract is present.
+        self.assertIn("secret", contents["hard_policies"].lower())
+
+    def test_persona_is_populated(self):
+        state = make_state(tmp=None)
+        contents = build_turn_input(state, "hola")
+        self.assertIn("Iris", contents["persona"])
+
     def test_includes_history_plan_scratch(self):
         state = make_state(tmp=None)
         state.plan = "1) ask\n2) wait"

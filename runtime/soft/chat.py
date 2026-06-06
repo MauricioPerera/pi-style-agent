@@ -212,7 +212,7 @@ def handle_command(state: ChatState, line: str, read_fn) -> bool:
         return False
 
     if name == "/config":
-        print("contract: " + state.contract.get("contract", {}).get("name", "?"))
+        print("contract: " + state.contract.get("name", "?"))
         print("model:    " + (os.environ.get("PI_LLM_MODEL", "stub")))
         print("embed:    " + (os.environ.get("PI_EMBED_MODEL", "(hashing)")))
         print("dim:      " + str(getattr(state.retriever, "_embed_dim", "(full)")))
@@ -255,7 +255,7 @@ def build_turn_input(state: ChatState, user_input: str) -> dict:
     return {
         "persona": _persona_str(state.contract),
         "hard_policies": "\n".join(
-            "- " + p for p in state.contract.get("contract", {}).get("hard_policies", [])),
+            "- " + p for p in state.contract.get("hard_policies", [])),
         "long_term_mem": state.memory.render(),
         "plan": state.plan,
         "scratchpad": state.scratch,
@@ -266,7 +266,7 @@ def build_turn_input(state: ChatState, user_input: str) -> dict:
 
 
 def _persona_str(contract: dict) -> str:
-    p = contract.get("contract", {}).get("persona", {})
+    p = contract.get("persona", {})
     if not p:
         return ""
     return (f"Eres {p.get('name', 'el agente')}. "
