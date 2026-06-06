@@ -26,6 +26,8 @@ import re
 import unicodedata
 from dataclasses import dataclass, field
 from pathlib import Path
+
+from runtime.hard.crypto import decrypt_str, encrypt_str, is_encrypted
 from typing import Iterable, Protocol
 
 
@@ -122,20 +124,25 @@ class Memory:
     # --- persistence (hard: plain files, no magic) ------------------------
 
     @classmethod
-    def load(cls, path: Path) -> "Memory":
+    def load(cls, path: Path, passphrase: str | None = None) -> "Memory":
         if not path.exists():
             return cls()
-        data = json.loads(path.read_text(encoding="utf-8"))
+        raw = path.read_text(encoding="utf-8")
+        raw = _maybe_decrypt(raw, passphrase, path)
+        data = json.loads(raw)
         m = cls(summary=data.get("summary", ""))
         m.items = [MemoryItem(**i) for i in data.get("items", [])]
         return m
 
-    def save(self, path: Path) -> None:
+    def save(self, path: Path, passphrase: str | None = None) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps({
+        blob = json.dumps({
             "summary": self.summary,
             "items": [i.to_dict() for i in self.items],
-        }, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+        }, indent=2, ensure_ascii=False)
+        if passphrase:
+            blob = encrypt_str(blob, passphrase)
+        path.write_text(blob + "\n", encoding="utf-8")
 
 
 # --- retriever protocol + a tiny in-memory implementation ------------------
@@ -340,7 +347,22 @@ def apply_delta(memory: Memory, delta: dict,
 
 # --- retriever persistence -------------------------------------------------
 
-def save_index(path: Path, items: Iterable["MemoryItem"]) -> None:
+def _maybe_decrypt(raw: str, passphrase: str | None, path: Path) -> str:
+    """If `raw` is an encryption envelope, decrypt it (passphrase required);
+    otherwise return it unchanged. Lets encrypted and plaintext state coexist
+    and makes migration a no-op: a plaintext file loads fine even with a
+    passphrase set, and the next save re-writes it encrypted.
+    """
+    if is_encrypted(raw):
+        if not passphrase:
+            raise ValueError(
+                f"{path} is encrypted; set PI_STATE_PASSPHRASE to load it")
+        return decrypt_str(raw, passphrase)
+    return raw
+
+
+def save_index(path: Path, items: Iterable["MemoryItem"],
+               passphrase: str | None = None) -> None:
     """Persist a list of MemoryItem to JSON. Embeddings are NOT saved; the
     caller is expected to re-embed on load. The rationale: the embedder
     may have changed (e.g. switched from hash to a real model) and we
@@ -351,15 +373,17 @@ def save_index(path: Path, items: Iterable["MemoryItem"]) -> None:
     cheap relative to the LLM calls they support.
     """
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(
-        [i.to_dict() for i in items], indent=2, ensure_ascii=False
-    ) + "\n", encoding="utf-8")
+    blob = json.dumps([i.to_dict() for i in items], indent=2, ensure_ascii=False)
+    if passphrase:
+        blob = encrypt_str(blob, passphrase)
+    path.write_text(blob + "\n", encoding="utf-8")
 
 
-def load_index(path: Path) -> list["MemoryItem"]:
+def load_index(path: Path, passphrase: str | None = None) -> list["MemoryItem"]:
     if not path.exists():
         return []
-    data = json.loads(path.read_text(encoding="utf-8"))
+    raw = _maybe_decrypt(path.read_text(encoding="utf-8"), passphrase, path)
+    data = json.loads(raw)
     return [MemoryItem(**d) for d in data]
 
 

@@ -168,9 +168,14 @@ def run_one(label, contract, contents, audit_dir, memory, memory_index,
 
 
 def load_state():
-    """Load memory + index from disk if present. Otherwise return fresh."""
-    mem = Memory.load(MEMORY_PATH)
-    items = load_index(INDEX_PATH)
+    """Load memory + index from disk if present. Otherwise return fresh.
+
+    Honours PI_STATE_PASSPHRASE: if set, encrypted state is decrypted on load
+    (and re-encrypted on the next persist). Plaintext state still loads.
+    """
+    passphrase = os.environ.get("PI_STATE_PASSPHRASE")
+    mem = Memory.load(MEMORY_PATH, passphrase=passphrase)
+    items = load_index(INDEX_PATH, passphrase=passphrase)
     return mem, items
 
 

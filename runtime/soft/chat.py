@@ -35,7 +35,8 @@ class ChatState:
                  plan: str = "", scratch: str = "",
                  history: list[dict] | None = None,
                  state_dir: Path | None = None,
-                 rag_index=None, rag_k: int = 4):
+                 rag_index=None, rag_k: int = 4,
+                 passphrase: str | None = None):
         """Build a chat state.
 
         `rag_index`: optional RAGIndex. When set, every user turn
@@ -58,6 +59,9 @@ class ChatState:
         self._pending_decision: str | None = None  # "confirm" or "deny" for the next turn
         self.rag_index = rag_index
         self.rag_k = rag_k
+        # Encryption at rest for persisted state. Reads PI_STATE_PASSPHRASE by
+        # default so callers get it for free; None means plaintext (unchanged).
+        self.passphrase = passphrase if passphrase is not None else os.environ.get("PI_STATE_PASSPHRASE")
 
     def persist(self) -> None:
         if self.state_dir is None:
@@ -65,13 +69,13 @@ class ChatState:
         self.state_dir.mkdir(parents=True, exist_ok=True)
         mem_path = self.state_dir / "memory.json"
         idx_path = self.state_dir / "index.json"
-        self.memory.save(mem_path)
+        self.memory.save(mem_path, passphrase=self.passphrase)
         # Sync the retriever with whatever the model just wrote.
         self.retriever._items.clear()
         self.retriever._vecs.clear()
         for it in self.memory.items:
             self.retriever.add(it)
-        save_index(idx_path, self.retriever._items.values())
+        save_index(idx_path, self.retriever._items.values(), passphrase=self.passphrase)
 
 
 def _format_reply(result: TurnResult) -> str:

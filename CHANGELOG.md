@@ -5,7 +5,36 @@ the contract or the hard-layer guarantees change in a way that
 breaks older contracts. Minor bumps add features. Patches are
 documentation and tests only.
 
-## v0.5.3 — current
+## v0.5.4 — current
+
+Adds encryption at rest for persisted state (Nivel 2, second piece).
+Opt-in; default behavior (plaintext) is unchanged.
+
+### Added
+- **`runtime/hard/crypto.py`** — `encrypt_str` / `decrypt_str` /
+  `is_encrypted`. scrypt KDF (stdlib `hashlib.scrypt`) derives a key from a
+  passphrase; Fernet (authenticated AES-128-CBC + HMAC, via `cryptography`)
+  encrypts. Self-describing JSON envelope carries the salt + KDF params.
+  Tamper-evident: a modified or truncated blob fails closed on decrypt.
+- **`PI_STATE_PASSPHRASE`** — when set, `ChatState.persist` and the demo
+  loaders encrypt `memory.json` / `index.json`. `Memory.save/load` and
+  `save_index/load_index` gained an optional `passphrase` parameter.
+- `tests/test_crypto.py` (11 tests: primitive round-trip / wrong key /
+  tamper / no-leak, and encrypted persistence + plaintext migration).
+
+### Notes
+- **No home-grown crypto, no silent plaintext.** `cryptography` is an
+  optional lazy import (like tiktoken), but if you ask to encrypt and it is
+  missing, it raises — it never quietly persists plaintext.
+- **Backward compatible.** Existing plaintext state still loads even with a
+  passphrase set; the next save re-writes it encrypted.
+- **Out of scope:** key management. The passphrase lives in your env; lose
+  it and the state is unrecoverable by design.
+
+### Tests
+200 stdlib `unittest` tests.
+
+## v0.5.3
 
 Adds deterministic execution bounds for tool calls (the first piece of
 "Nivel 2"). Hard-layer only; the sealed boundary is intact.

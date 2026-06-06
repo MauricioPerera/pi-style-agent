@@ -94,7 +94,7 @@ pi-style-agent/
   audit/                    # one JSON per turn (also audit_demo* from runs)
   state_demo/               # persisted memory.json + index.json
   config/
-  tests/                    # 189 stdlib unittest tests, 0 LLM calls in the loop
+  tests/                    # 200 stdlib unittest tests, 0 LLM calls in the loop
     test_hard.py            #   budget, secrets, guardrails, output sanitize
     test_tools.py           #   tool schema validation
     test_memory.py          #   memory, plan/scratch, retrievers, Matryoshka dim
@@ -268,7 +268,7 @@ prior context. Re-run the demo to see this in action.
 
 ```bash
 # Tests (no LLM, ~20s for the deterministic suite; ~85s with live
-# server tests; 189 tests total)
+# server tests; 200 tests total)
 python -m unittest discover -s tests -p "test_*.py" -v
 
 # Offline demo (deterministic, no LM Studio needed)
@@ -300,6 +300,7 @@ takes ~10–15 min on a 12B model.
 | `PI_EMBED_DIM` | `256` | Matryoshka truncation dim (128/256/768) |
 | `PI_LLM_TIMEOUT` | `300` | HTTP timeout in seconds |
 | `LMS_CLI` | (auto) | Path to the `lms` binary (for model preloading) |
+| `PI_STATE_PASSPHRASE` | (unset) | If set, persisted `state/` (memory + index) is encrypted at rest (scrypt + Fernet). Requires `cryptography`. Unset = plaintext. |
 
 ## Why embeddinggemma + Matryoshka
 

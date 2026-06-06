@@ -35,6 +35,11 @@ The hard layer. Deterministic, no LLM calls. All the code that
   an opt-in `isolated` mode that runs the tool in a separate process
   (killable, contains a segfault). Bounds *liveness and blast radius*,
   not *privilege* — it is not a security sandbox.
+- [crypto.py](crypto.py) — encryption at rest for persisted state
+  (`encrypt_str` / `decrypt_str` / `is_encrypted`). scrypt KDF (stdlib)
+  + Fernet (authenticated AES, via `cryptography`). Tamper-evident and
+  fails closed; never silently falls back to plaintext. Optional
+  dependency, lazy-imported.
 
 ## How the layers meet
 
@@ -49,6 +54,7 @@ The soft layer (chat loop, turn loop) calls into the hard layer
 | `specs_from_contract`, `validate_response`, `is_confirmable`, `tool_spec_from_contract`, `tool_exec_opts` | `tools.py` | Schema validation is hard; routing decisions (which tool, which mode) are soft. |
 | `run_guarded(fn, args, *, timeout_s, isolated)` | `sandbox.py` | A tool can hang or crash; the turn cannot. Bounds the wait, contains the failure. |
 | `validate(data, schema)` | `schema.py` | One validator shared by the tool check and the guardrail. |
+| `encrypt_str`, `decrypt_str`, `is_encrypted` | `crypto.py` | Encryption at rest. Fails closed; never writes plaintext when asked to encrypt. |
 
 The hard layer never calls into the soft layer. If you find yourself
 adding an import from `runtime/soft/` inside `runtime/hard/`, stop —

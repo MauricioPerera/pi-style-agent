@@ -197,8 +197,12 @@ asking*.
 - **Memory consistency across forks.** A single Memory object is
   sequential; if you run two agents in parallel that share memory,
   they will race. Use external locking or split by tenant.
-- **Encrypted at rest.** The persisted `state/` is plain JSON. Add
-  encryption at the filesystem layer if you need it.
+- **Encrypted at rest (opt-in, done).** Set `PI_STATE_PASSPHRASE` and the
+  persisted `state/` (memory + index) is encrypted with scrypt + Fernet
+  (`runtime/hard/crypto.py`). Authenticated, so a tampered blob fails
+  closed on load. Unset = plaintext (unchanged). What is still on you:
+  key management — the passphrase lives in your environment, and losing
+  it means losing the state (there is no recovery by design).
 
 ## Cross-references
 
