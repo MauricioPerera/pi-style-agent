@@ -162,7 +162,7 @@ def run_one(label, contract, contents, audit_dir, memory, memory_index,
     # as fresh. After a memory delta, this is the most useful
     # moment to refresh.
     if hasattr(memory_index, "touch"):
-        memory_index.touch([it.key for it in mem.items])
+        memory_index.touch([it.key for it in memory.items])
 
     return r.plan_next or "", r.scratchpad_next or ""
 
