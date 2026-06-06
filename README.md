@@ -94,7 +94,7 @@ pi-style-agent/
   audit/                    # one JSON per turn (also audit_demo* from runs)
   state_demo/               # persisted memory.json + index.json
   config/
-  tests/                    # 223 stdlib unittest tests, 0 LLM calls in the loop
+  tests/                    # 227 stdlib unittest tests, 0 LLM calls in the loop
     test_hard.py            #   budget, secrets, guardrails, output sanitize
     test_tools.py           #   tool schema validation
     test_memory.py          #   memory, plan/scratch, retrievers, Matryoshka dim
@@ -268,7 +268,7 @@ prior context. Re-run the demo to see this in action.
 
 ```bash
 # Tests (no LLM, ~20s for the deterministic suite; ~85s with live
-# server tests; 223 tests total)
+# server tests; 227 tests total)
 python -m unittest discover -s tests -p "test_*.py" -v
 
 # Offline demo (deterministic, no LM Studio needed)

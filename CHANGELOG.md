@@ -5,7 +5,37 @@ the contract or the hard-layer guarantees change in a way that
 breaks older contracts. Minor bumps add features. Patches are
 documentation and tests only.
 
-## v0.5.7 — current
+## v0.5.11 — current
+
+Bug-fix batch from an independent full-repo review. Four fixes; the first is
+a security fix.
+
+### Fixed
+- **v0.5.8 — secret leak into memory (security).** The turn loop applied the
+  `<<<MEMORY-DELTA>>>` to the *raw* model reply before sanitizing it (the
+  comment claimed the opposite). A secret stashed in the delta was persisted
+  to long-term memory in the clear, and via the `scope:"all"` guardrail would
+  then block every later turn. Now: sanitize first, parse/apply the delta from
+  the sanitized text, then strip the delta block from the user reply. Also
+  fixed: the delta block was visible in the reply (now stripped via
+  `memory.strip_delta`), and a stale `tool_depth_cap` docstring ("Default 1"
+  → 2).
+- **v0.5.9 — hard_policies missing from the chat prompt.** `chat.py` read
+  `contract.get("contract", {})`, a wrapper key the contract JSON lacks, so
+  `build_turn_input` produced an empty `hard_policies` slot and the safety
+  policies never entered the prompt via interactive chat. Dropped the bogus
+  wrapper at all three sites; added the missing `TestBuildTurnInput`
+  assertions.
+- **v0.5.10 — lms tests failed on a clean checkout.** Three `TestLmsLoad`
+  cases mocked `subprocess.run` but not `find_lms`, so they failed without the
+  `lms` binary (violating CONTRIBUTING's promise). Now patch `find_lms` too.
+- **v0.5.11 — latent NameError in `demo_live.run_one`** (`mem` → `memory`).
+
+### Tests
+227 stdlib `unittest` tests (+4 regressions: secret-not-persisted, delta
+stripped, hard_policies present, persona present).
+
+## v0.5.7
 
 Adds audit-log observability (Nivel 3). Read-only; no change to the loop or
 the gates.
