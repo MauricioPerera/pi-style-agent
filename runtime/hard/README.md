@@ -19,6 +19,11 @@ The hard layer. Deterministic, no LLM calls. All the code that
 - [secrets.py](secrets.py) — the regex patterns for known secret
   formats (`sk-…`, AWS, PEM, GitHub PAT, Slack). Centralised so the
   input guardrail and the output sanitizer stay in sync.
+- [schema.py](schema.py) — the single recursive JSON-Schema-ish
+  validator (`validate`). Both `tools.validate_response` and the
+  `json_schema` guardrail use it, so a tool response and a slot are
+  checked against the same logic. Centralised so the two can never
+  drift apart.
 - [tools.py](tools.py) — tool registry. Each tool declares a
   `response_schema`; the runner validates the return. Supports
   `confirm: true` (irreversible actions need `/confirm`) and

@@ -144,6 +144,23 @@ class TestGuardrails(unittest.TestCase):
         r = run_guardrails(g, slots)
         self.assertFalse(r.passed)
 
+    def test_json_schema_guardrail_validates_nested_property(self):
+        # After consolidating onto the shared recursive validator, the guardrail
+        # catches a wrong type on a NESTED property. The old flat validator in
+        # guardrails.py only checked top-level shape and missed this.
+        slots = {"tool_results": json.dumps(
+            {"tool": "calc", "ok": True, "data": {"value": "not a number"}})}
+        g = [{"id": "shape", "type": "json_schema", "scope": "slot:tool_results",
+              "schema_inline": {
+                  "type": "object", "required": ["tool", "ok"],
+                  "properties": {"data": {
+                      "type": "object", "required": ["value"],
+                      "properties": {"value": {"type": "number"}}}}},
+              "on_fail": "abort"}]
+        r = run_guardrails(g, slots)
+        self.assertFalse(r.passed)
+        self.assertIn("value", r.failed()[0].detail)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

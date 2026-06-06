@@ -22,6 +22,10 @@ import json
 from dataclasses import dataclass
 from typing import Any
 
+# Single source of truth for the schema validator (shared with guardrails).
+# Re-exported as `_validate` so existing importers keep working.
+from .schema import validate as _validate
+
 
 class ToolError(RuntimeError):
     """Raised when a tool response fails its declared schema."""
@@ -82,49 +86,9 @@ def tool_descriptions(specs: list[ToolSpec]) -> str:
     return "\n".join(lines)
 
 
-# --- minimal validator -----------------------------------------------------
-
-def _validate(data: Any, schema: dict, path: str = "$") -> str | None:
-    if not isinstance(schema, dict):
-        return f"{path}: schema no es un objeto"
-
-    t = schema.get("type")
-    if t == "object":
-        if not isinstance(data, dict):
-            return f"{path}: esperaba object, recibi {type(data).__name__}"
-        for req in schema.get("required", []):
-            if req not in data:
-                return f"{path}: falta campo requerido '{req}'"
-        for key, sub in schema.get("properties", {}).items():
-            if key in data:
-                err = _validate(data[key], sub, f"{path}.{key}")
-                if err is not None:
-                    return err
-    elif t == "array":
-        if not isinstance(data, list):
-            return f"{path}: esperaba array, recibi {type(data).__name__}"
-        items = schema.get("items")
-        if isinstance(items, dict):
-            for i, v in enumerate(data):
-                err = _validate(v, items, f"{path}.items[{i}]")
-                if err is not None:
-                    return err
-    elif t == "string":
-        if not isinstance(data, str):
-            return f"{path}: esperaba string, recibi {type(data).__name__}"
-    elif t == "integer":
-        if isinstance(data, bool) or not isinstance(data, int):
-            return f"{path}: esperaba integer, recibi {type(data).__name__}"
-    elif t == "number":
-        if isinstance(data, bool) or not isinstance(data, (int, float)):
-            return f"{path}: esperaba number, recibi {type(data).__name__}"
-    elif t == "boolean":
-        if not isinstance(data, bool):
-            return f"{path}: esperaba boolean, recibi {type(data).__name__}"
-    else:
-        # unknown type -> permissive (caller can layer jsonschema on top)
-        return None
-    return None
+# The schema validator now lives in `runtime/hard/schema.py` and is imported
+# at the top of this module as `_validate`. See that module for the supported
+# subset and the rationale for the consolidation.
 
 
 

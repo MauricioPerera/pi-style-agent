@@ -5,7 +5,35 @@ the contract or the hard-layer guarantees change in a way that
 breaks older contracts. Minor bumps add features. Patches are
 documentation and tests only.
 
-## v0.5.1 — current
+## v0.5.2 — current
+
+Patch: hard-layer cleanup. No change to the contract or the sealed
+boundary; both fixes make existing behavior more correct, not different
+in the happy path.
+
+### Changed
+- **Single schema validator.** Extracted `runtime/hard/schema.py`. The
+  tool-response check and the `json_schema` guardrail had two
+  near-identical `_validate` copies — one recursive, one flat — that
+  could disagree on the same schema. They now share one recursive
+  implementation, so the guardrail also catches wrong types on *nested*
+  properties (previously only top-level shape was checked).
+
+### Fixed
+- **Tool-call parser.** `_extract_tool_call` used `rfind("}")`, grabbing
+  the last brace in the whole reply. Trailing prose containing a `}`
+  made the JSON slice unparseable, and adjacent objects could merge.
+  Replaced with a balanced-brace scan that respects JSON string literals
+  and escapes. Correct for nested args and trailing text.
+
+### Added
+- `tests/test_tool_call_parse.py` (parser + brace matcher) and a nested-
+  property case in `test_hard.py`.
+
+### Tests
+178 stdlib `unittest` tests.
+
+## v0.5.1
 
 Patch: perimeter consistency. No change to the hard-layer guarantees or
 the contract semantics; the sealed boundary and the turn loop are

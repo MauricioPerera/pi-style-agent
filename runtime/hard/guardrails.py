@@ -6,10 +6,9 @@ the input the agent refuses / reroutes without paying for inference.
 """
 from __future__ import annotations
 import json
-import re
 from dataclasses import dataclass
-from typing import Any
 
+from .schema import validate as _validate
 from .secrets import compile_patterns, find_secrets
 
 
@@ -109,21 +108,7 @@ def _scope_text(scope: str, assembled: dict[str, str]) -> str:
     return ""
 
 
-def _validate(data: Any, schema: dict) -> str | None:
-    """Minimal JSON-schema-ish validator for the two shapes the contract uses.
-    Good enough for a tool-output guardrail; swap for `jsonschema` if needed."""
-    if not isinstance(schema, dict):
-        return "schema no es un objeto"
-    t = schema.get("type")
-    if t == "object" and not isinstance(data, dict):
-        return f"esperaba object, recibi {type(data).__name__}"
-    if t == "array" and not isinstance(data, list):
-        return f"esperaba array, recibi {type(data).__name__}"
-    if t == "string" and not isinstance(data, str):
-        return f"esperaba string, recibi {type(data).__name__}"
-    if t == "boolean" and not isinstance(data, bool):
-        return f"esperaba boolean, recibi {type(data).__name__}"
-    for req in schema.get("required", []):
-        if not isinstance(data, dict) or req not in data:
-            return f"falta campo requerido '{req}'"
-    return None
+# The schema validator lives in `runtime/hard/schema.py`, imported above as
+# `_validate`. Both this guardrail and the tool-response check now validate
+# against the same recursive implementation — no more two copies that could
+# disagree on the same schema.

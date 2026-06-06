@@ -309,8 +309,6 @@ def replay_turn(contract: dict, contents: dict[str, str], audit_path: Path) -> b
 
 # Tool call convention emitted by the LLM (very simple, easy to teach):
 #   <<<TOOL_CALL>>> {"name": "search", "args": {"q": "madrid weather"}}
-import re as _re
-_TOOL_CALL_RE = _re.compile(r"<<<TOOL_CALL>>>\s*(\{.*?\n\})", _re.DOTALL)
 
 
 def _extract_tool_call(body: str) -> dict | None:
@@ -320,10 +318,12 @@ def _extract_tool_call(body: str) -> dict | None:
         {"name": "...", "args": {...}}
         <<<END>>>
 
-    The regex above is intentionally non-greedy within the JSON braces; with
-    nested objects we still hit the bug where the inner `}` closes the match
-    too early. We work around it by scanning for the first `{` after the tag
-    and the LAST `}` in the body of the reply, and slicing the substring.
+    We find the first `{` after the tag and scan forward for its MATCHING
+    `}` with a balanced-brace walk that respects JSON string literals and
+    escapes. This is correct for nested args (`{"args": {"a": {"b": 1}}}`)
+    and for trailing prose that contains stray braces — both of which broke
+    the old `rfind("}")` heuristic (it grabbed the last brace in the whole
+    reply, swallowing or merging anything in between).
     """
     tag = "<<<TOOL_CALL>>>"
     i = body.find(tag)
@@ -332,16 +332,45 @@ def _extract_tool_call(body: str) -> dict | None:
     j = body.find("{", i)
     if j < 0:
         return None
-    k = body.rfind("}")
-    if k <= j:
+    end = _matching_brace(body, j)
+    if end < 0:
         return None
     try:
-        d = json.loads(body[j:k + 1])
+        d = json.loads(body[j:end + 1])
     except json.JSONDecodeError:
         return None
     if not isinstance(d, dict) or "name" not in d:
         return None
     return d
+
+
+def _matching_brace(s: str, start: int) -> int:
+    """Index of the `}` that closes the `{` at ``s[start]``, or -1 if the
+    object never closes. Braces inside JSON string literals do not count, and
+    a `\\`-escaped quote does not end a string.
+    """
+    depth = 0
+    in_str = False
+    esc = False
+    for idx in range(start, len(s)):
+        c = s[idx]
+        if in_str:
+            if esc:
+                esc = False
+            elif c == "\\":
+                esc = True
+            elif c == '"':
+                in_str = False
+            continue
+        if c == '"':
+            in_str = True
+        elif c == "{":
+            depth += 1
+        elif c == "}":
+            depth -= 1
+            if depth == 0:
+                return idx
+    return -1
 
 
 def _h(text: str) -> str:
