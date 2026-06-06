@@ -44,6 +44,11 @@ The hard layer. Deterministic, no LLM calls. All the code that
   (temp + `os.replace`, so a crash mid-write never leaves a torn file)
   and `state_lock` (an advisory `O_EXCL` file lock that serializes
   concurrent writers, breaks stale locks). Pure stdlib, cross-platform.
+- [audit_report.py](audit_report.py) — reads the per-turn audit log
+  back and aggregates it (`summarize_audit` / `format_summary`):
+  outcomes, guardrail blocks, redactions, tool calls/errors, memory
+  writes. Turns the append-only log into observability. Surfaced as
+  the chat `/stats` command and `python -m runtime.hard.audit_report`.
 
 ## How the layers meet
 
@@ -60,6 +65,7 @@ The soft layer (chat loop, turn loop) calls into the hard layer
 | `validate(data, schema)` | `schema.py` | One validator shared by the tool check and the guardrail. |
 | `encrypt_str`, `decrypt_str`, `is_encrypted` | `crypto.py` | Encryption at rest. Fails closed; never writes plaintext when asked to encrypt. |
 | `write_atomic`, `state_lock` | `statelock.py` | A crash mid-write must not corrupt state; concurrent writers must not clobber it. |
+| `summarize_audit`, `format_summary` | `audit_report.py` | Read-only observability over the audit log; never mutates state. |
 
 The hard layer never calls into the soft layer. If you find yourself
 adding an import from `runtime/soft/` inside `runtime/hard/`, stop —

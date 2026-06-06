@@ -5,7 +5,31 @@ the contract or the hard-layer guarantees change in a way that
 breaks older contracts. Minor bumps add features. Patches are
 documentation and tests only.
 
-## v0.5.6 — current
+## v0.5.7 — current
+
+Adds audit-log observability (Nivel 3). Read-only; no change to the loop or
+the gates.
+
+### Added
+- **`runtime/hard/audit_report.py`** — `summarize_audit` / `format_summary`.
+  Aggregates every `turn-*.json` into counts: outcomes, guardrail blocks (by
+  id), redactions (by label), tool calls and errors (by name), memory writes.
+  Skips torn/unreadable files. Runnable as `python -m runtime.hard.audit_report
+  [dir]`.
+- **`/stats` chat command** — prints the aggregate over the session's audit
+  log.
+- `tests/test_audit_report.py` (4 tests: empty, full count, bad-file
+  tolerance, format).
+
+### Why
+The audit log was write-only in practice — the security machinery (blocks,
+redactions, timeouts) left a trace nobody read back. This makes "how often did
+a guardrail fire / what got redacted" a number you can watch.
+
+### Tests
+223 stdlib `unittest` tests.
+
+## v0.5.6
 
 Adds an adversarial security regression corpus (Nivel 3). Tests only; no
 code change.

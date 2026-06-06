@@ -9,6 +9,7 @@ Commands (start with /):
   /memory show what''s in long-term memory
   /tools  list registered tools + their response_schemas
   /audit  path of the latest audit log entry
+  /stats  aggregate stats over the audit log
   /help   print this list
   /config show the current contract name, model, and embedder
 """
@@ -148,6 +149,7 @@ def handle_command(state: ChatState, line: str, read_fn) -> bool:
         print("/memory show long-term memory")
         print("/tools  list registered tools")
         print("/audit  path of the latest audit log entry")
+        print("/stats  aggregate stats over the audit log")
         print("/config show contract name, model, embedder")
         print("/confirm confirm a pending tool call")
         print("/deny    deny a pending tool call")
@@ -194,6 +196,19 @@ def handle_command(state: ChatState, line: str, read_fn) -> bool:
             print(str(state.last_audit_path))
         else:
             print("(no audit entry yet)")
+        return False
+
+    if name == "/stats":
+        from runtime.hard.audit_report import format_summary, summarize_audit
+        audit_dir = None
+        if state.last_audit_path is not None:
+            audit_dir = state.last_audit_path.parent
+        elif state.state_dir is not None:
+            audit_dir = state.state_dir / "audit"
+        if audit_dir is None or not audit_dir.exists():
+            print("(no audit log yet)")
+        else:
+            print(format_summary(summarize_audit(audit_dir)))
         return False
 
     if name == "/config":
