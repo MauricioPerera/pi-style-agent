@@ -188,6 +188,50 @@ class TestEndToEndAdversarial(unittest.TestCase):
         self.assertNotIn("ghp_abcdefghijklmnopqrstuvwxyz", rec.user_message)
         self.assertIn("sanitization", rec.audit_record)
 
+    def test_secret_in_memory_delta_never_persisted_in_clear(self):
+        # Regression for the ordering bug: a secret the model tries to stash in
+        # the memory delta must be sanitized BEFORE apply_delta, so it is never
+        # written to long-term memory in the clear.
+        from runtime.soft.agent import run_turn
+        from runtime.soft.llm import LLMResponse
+        from runtime.soft.memory import Memory
+
+        def stashing_llm(system, user, model=""):
+            return LLMResponse(
+                text=("Saved.\n<<<MEMORY-DELTA>>>\n"
+                      "+ api_key: sk-ABCDEFGHIJKLMNOPQRSTUV\n<<<END>>>"),
+                model="stub", tokens_in=0, tokens_out=0)
+
+        mem = Memory()
+        rec = run_turn(self.contract, self._contents("remember my key"),
+                       audit_dir=self.tmp, memory=mem, llm_callable=stashing_llm)
+        self.assertEqual(rec.outcome, "ok")
+        # The raw secret must appear NOWHERE in persisted memory.
+        for it in mem.items:
+            self.assertNotIn("sk-ABCDEFGHIJKLMNOPQRSTUV", it.value)
+        # It was stored, but redacted.
+        self.assertTrue(any("[REDACTED:openai_key]" in it.value for it in mem.items))
+
+    def test_memory_delta_block_not_shown_to_user(self):
+        # Regression: the <<<MEMORY-DELTA>>> block is machinery, stripped from
+        # the user-facing reply.
+        from runtime.soft.agent import run_turn
+        from runtime.soft.llm import LLMResponse
+        from runtime.soft.memory import Memory
+
+        def llm(system, user, model=""):
+            return LLMResponse(
+                text=("Noted your city.\n<<<MEMORY-DELTA>>>\n"
+                      "+ city: Madrid\n<<<END>>>"),
+                model="stub", tokens_in=0, tokens_out=0)
+
+        rec = run_turn(self.contract, self._contents("I live in Madrid"),
+                       audit_dir=self.tmp, memory=Memory(), llm_callable=llm)
+        self.assertEqual(rec.outcome, "ok")
+        self.assertNotIn("<<<MEMORY-DELTA>>>", rec.user_message)
+        self.assertNotIn("<<<END>>>", rec.user_message)
+        self.assertIn("Noted your city.", rec.user_message)
+
 
 if __name__ == "__main__":
     unittest.main()

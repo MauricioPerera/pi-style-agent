@@ -23,7 +23,7 @@ from runtime.soft.assembler import (
 )
 from runtime.soft.llm import LLMResponse, call_llm
 from runtime.soft.plan import AgentReply
-from runtime.soft.memory import Memory, parse_delta, apply_delta
+from runtime.soft.memory import Memory, parse_delta, apply_delta, strip_delta
 from runtime.hard.tools import ToolError, ToolSpec, specs_from_contract, tool_exec_opts, validate_response
 from runtime.hard.output_sanitize import sanitize
 from runtime.hard.sandbox import run_guarded
@@ -69,9 +69,9 @@ def run_turn(contract: dict,
     current user_input, plus the summary). Without them, the slot is treated
     as opaque text and used as-is.
 
-    `tool_depth_cap`: maximum number of LLM/tool rounds per turn. Default 1
-    (single tool call). Set higher for agentic chains; the hard layer never
-    trusts the model to bound itself.
+    `tool_depth_cap`: maximum number of LLM/tool rounds per turn. Default 2.
+    Set higher for agentic chains; the hard layer never trusts the model to
+    bound itself.
     """
     tools = tools or {}
     if llm_callable is None:
@@ -269,30 +269,34 @@ def run_turn(contract: dict,
     if tool_called_history:
         record["tool_called"] = tool_called_history
 
-    # Memory delta: the LLM can emit <<<MEMORY-DELTA>>> anywhere in the body.
-    # Note: we extract the delta from the SANITIZED body, so a leaked
-    # secret in the reply can never sneak into memory.
-    final_body = reply.body
-    delta = parse_delta(final_body)
-    if memory is not None and (delta.get("summary") or delta.get("ops")):
-        apply_delta(memory, delta)
-        record["memory_delta"] = delta
-
-    # Output sanitization: deterministic redaction of secrets / PII in
-    # the assistant reply. Hard layer. Never aborts; always returns a
-    # redacted reply. The audit log records what was redacted so we can
-    # prove what the LLM actually said.
-    san = sanitize(final_body)
+    # Output sanitization FIRST. Deterministic redaction of secrets / PII in
+    # the assistant reply. Hard layer. Never aborts. We sanitize before we
+    # read ANYTHING structured out of the reply, so a leaked secret is redacted
+    # before it can reach persistent memory or the audit log.
+    san = sanitize(reply.body)
     if not san.clean:
         record["sanitization"] = {
             "redacted": san.redacted,
             "summary": san.summary(),
         }
 
+    # Memory delta: the LLM can emit <<<MEMORY-DELTA>>> anywhere in the body.
+    # We parse it from the SANITIZED text, so a secret the model tried to stash
+    # in the delta is stored as [REDACTED:...], never in the clear. The hard
+    # layer never trusts the model to keep secrets out of state.
+    delta = parse_delta(san.text)
+    if memory is not None and (delta.get("summary") or delta.get("ops")):
+        apply_delta(memory, delta)
+        record["memory_delta"] = delta
+
+    # The delta block is machinery, not user-facing prose: strip it from the
+    # reply the user sees (mirrors how plan/scratchpad tags are stripped).
+    user_message = strip_delta(san.text)
+
     _write(audit_dir, ts, record)
     return TurnResult(
         outcome="ok",
-        user_message=san.text,
+        user_message=user_message,
         plan_next=reply.plan,
         scratchpad_next=reply.scratchpad,
         memory_delta=delta,

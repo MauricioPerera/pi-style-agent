@@ -313,6 +313,23 @@ def parse_delta(text: str) -> dict:
     return {"summary": summary, "ops": ops}
 
 
+def strip_delta(text: str) -> str:
+    """Remove the ``<<<MEMORY-DELTA>>> ... <<<END>>>`` block from a reply.
+
+    The delta is machinery the runner consumes, not prose for the user. The
+    runner strips it from the user-facing message (mirroring how `plan.py`
+    strips PLAN/SCRATCHPAD). Anything before the header and after the closing
+    ``<<<END>>>`` is kept; a missing ``<<<END>>>`` drops everything from the
+    header onward.
+    """
+    i = text.find(DELTA_HEADER)
+    if i < 0:
+        return text
+    rest = text[i + len(DELTA_HEADER):]
+    after = rest.split("<<<END>>>", 1)[1] if "<<<END>>>" in rest else ""
+    return (text[:i] + after).strip()
+
+
 def apply_delta(memory: Memory, delta: dict,
                 retriever: Retriever | None = None) -> None:
     """Apply a parsed delta to a Memory in place. Failures are silent — the
