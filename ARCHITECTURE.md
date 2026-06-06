@@ -177,10 +177,19 @@ asking*.
 
 ## What is NOT covered (the honest list)
 
+The deterministic guardrails' limits are not just described here — they are
+pinned with assertions in [`tests/test_adversarial.py`](tests/test_adversarial.py),
+which throws a battery of hostile inputs at them and explicitly tests what
+they do *not* catch (unrecognized secret formats, trivial obfuscation, prompt
+injection). If a gap below ever gets closed, the matching test fails and the
+list gets updated — so this stays honest by construction.
+
 - **Jailbreak resistance.** CCDD guarantees the policies are *in* the
   prompt. The model can still be convinced to ignore them. Output
   sanitization catches the most common leak (a credential in the
-  reply) but cannot prevent all misuse.
+  reply) but cannot prevent all misuse. Regex-based secret detection is
+  also evaded by trivial obfuscation (a space inside the token) — pinned
+  in the adversarial corpus.
 - **Tool execution security (partial).** Tool calls now run under
   `runtime/hard/sandbox.py`: a wall-clock timeout, crash containment,
   and an opt-in `isolated` mode that runs the tool in a separate,

@@ -5,7 +5,30 @@ the contract or the hard-layer guarantees change in a way that
 breaks older contracts. Minor bumps add features. Patches are
 documentation and tests only.
 
-## v0.5.5 — current
+## v0.5.6 — current
+
+Adds an adversarial security regression corpus (Nivel 3). Tests only; no
+code change.
+
+### Added
+- **`tests/test_adversarial.py`** (11 tests). Three kinds:
+  - *Guarantees:* every known secret format is blocked on input (any slot)
+    and redacted on output, end-to-end through the turn loop (a secret on
+    input blocks before any LLM call; a secret in the reply is redacted and
+    logged, not aborted).
+  - *Documented gaps:* explicit assertions that the deterministic layer does
+    NOT catch unrecognized secret formats (Google key, JWT, AWS secret key),
+    trivial obfuscation (a space inside the token), or prompt injection. If a
+    gap is later closed, the test fails and gets updated — the limitation
+    stays tracked instead of silent.
+  - *No false positives:* near-miss strings below each pattern's minimum
+    length do not trip the guardrail.
+- ARCHITECTURE.md's honest list now points at this corpus.
+
+### Tests
+219 stdlib `unittest` tests.
+
+## v0.5.5
 
 Adds state integrity under crashes and concurrency (Nivel 2, third piece).
 Completes Nivel 2.
