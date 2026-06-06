@@ -53,8 +53,9 @@ class TestFindLms(unittest.TestCase):
 
 
 class TestLmsLoad(unittest.TestCase):
+    @patch("runtime.soft.lms.find_lms", return_value="lms")
     @patch("subprocess.run")
-    def test_lms_load_invokes_cli(self, mock_run):
+    def test_lms_load_invokes_cli(self, mock_run, mock_find):
         mock_run.return_value = MagicMock(returncode=0, stdout="loaded", stderr="")
         rc, out, err = lms_load("some-model", yes=True)
         self.assertEqual(rc, 0)
@@ -65,8 +66,9 @@ class TestLmsLoad(unittest.TestCase):
         self.assertIn("some-model", args)
         self.assertIn("-y", args)
 
+    @patch("runtime.soft.lms.find_lms", return_value="lms")
     @patch("subprocess.run")
-    def test_lms_load_returns_error_code(self, mock_run):
+    def test_lms_load_returns_error_code(self, mock_run, mock_find):
         mock_run.return_value = MagicMock(returncode=1, stdout="", stderr="model not found")
         rc, _, err = lms_load("missing-model", yes=True)
         self.assertEqual(rc, 1)
@@ -80,8 +82,9 @@ class TestLmsLoad(unittest.TestCase):
             self.assertEqual(rc, 127)
             self.assertIn("not found", err)
 
+    @patch("runtime.soft.lms.find_lms", return_value="lms")
     @patch("subprocess.run")
-    def test_lms_load_handles_timeout(self, mock_run):
+    def test_lms_load_handles_timeout(self, mock_run, mock_find):
         mock_run.side_effect = subprocess.TimeoutExpired(cmd="lms", timeout=300)
         rc, _, err = lms_load("any-model", yes=True)
         self.assertEqual(rc, 124)
