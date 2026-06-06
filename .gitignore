@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Generated at runtime — audit logs are per-run, reproducible, not source
+audit/
+audit_demo/
+audit_demo_pressure/
+audit_live/
+
+# Persisted agent state (memory + index), recreated on run
+state_demo/
+
+# Demo capture files
+*.out
