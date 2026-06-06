@@ -67,6 +67,20 @@ def list_confirmable(contract: dict) -> list[str]:
     return [t["name"] for t in contract.get("tools", []) if t.get("confirm") is True]
 
 
+def tool_exec_opts(contract: dict, tool_name: str) -> tuple[float | None, bool]:
+    """Per-tool execution bounds declared in the contract:
+    `timeout_s` (wall-clock budget) and `isolated` (run in a separate
+    process). Returns `(timeout_s_or_None, isolated_bool)`. The runner passes
+    these to `sandbox.run_guarded`; absent keys mean "use the default budget,
+    in-process".
+    """
+    for t in contract.get("tools", []):
+        if t.get("name") == tool_name:
+            ts = t.get("timeout_s")
+            return (float(ts) if ts is not None else None), bool(t.get("isolated", False))
+    return None, False
+
+
 def validate_response(spec: ToolSpec, payload: Any) -> Any:
     """Raise ToolError if `payload` does not match `spec.schema`."""
     err = _validate(payload, spec.schema)

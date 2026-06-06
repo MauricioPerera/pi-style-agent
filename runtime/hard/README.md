@@ -26,9 +26,15 @@ The hard layer. Deterministic, no LLM calls. All the code that
   drift apart.
 - [tools.py](tools.py) — tool registry. Each tool declares a
   `response_schema`; the runner validates the return. Supports
-  `confirm: true` (irreversible actions need `/confirm`) and
+  `confirm: true` (irreversible actions need `/confirm`),
   `soft_fail: true` (schema violations return to the LLM as
-  rejected tool results).
+  rejected tool results), and the execution bounds `timeout_s` /
+  `isolated` read by `tool_exec_opts`.
+- [sandbox.py](sandbox.py) — deterministic execution bounds for tool
+  calls (`run_guarded`). Wall-clock timeout + crash containment, with
+  an opt-in `isolated` mode that runs the tool in a separate process
+  (killable, contains a segfault). Bounds *liveness and blast radius*,
+  not *privilege* — it is not a security sandbox.
 
 ## How the layers meet
 
@@ -40,7 +46,9 @@ The soft layer (chat loop, turn loop) calls into the hard layer
 | `estimate_tokens`, `truncate_to_tokens` | `budget.py` | Cheap approximation; swap to a real tokeniser without touching the call sites. |
 | `run_guardrails(contract, slots)` | `guardrails.py` | Fails closed. The only place secrets are filtered on the input side. |
 | `sanitize(text)` | `output_sanitize.py` | Redacts. Never aborts. |
-| `specs_from_contract`, `validate_response`, `is_confirmable`, `tool_spec_from_contract` | `tools.py` | Schema validation is hard; routing decisions (which tool, which mode) are soft. |
+| `specs_from_contract`, `validate_response`, `is_confirmable`, `tool_spec_from_contract`, `tool_exec_opts` | `tools.py` | Schema validation is hard; routing decisions (which tool, which mode) are soft. |
+| `run_guarded(fn, args, *, timeout_s, isolated)` | `sandbox.py` | A tool can hang or crash; the turn cannot. Bounds the wait, contains the failure. |
+| `validate(data, schema)` | `schema.py` | One validator shared by the tool check and the guardrail. |
 
 The hard layer never calls into the soft layer. If you find yourself
 adding an import from `runtime/soft/` inside `runtime/hard/`, stop —

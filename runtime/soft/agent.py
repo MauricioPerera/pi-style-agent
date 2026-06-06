@@ -24,8 +24,9 @@ from runtime.soft.assembler import (
 from runtime.soft.llm import LLMResponse, call_llm
 from runtime.soft.plan import AgentReply
 from runtime.soft.memory import Memory, parse_delta, apply_delta
-from runtime.hard.tools import ToolError, ToolSpec, specs_from_contract, validate_response
+from runtime.hard.tools import ToolError, ToolSpec, specs_from_contract, tool_exec_opts, validate_response
 from runtime.hard.output_sanitize import sanitize
+from runtime.hard.sandbox import run_guarded
 
 
 AUDIT_DIR = Path("audit")
@@ -151,7 +152,8 @@ def run_turn(contract: dict,
                 "\n<<<END>>>")
         else:
             try:
-                result_raw = tools[tname](targs)
+                _to, _iso = tool_exec_opts(contract, tname)
+                result_raw = run_guarded(tools[tname], targs, timeout_s=_to, isolated=_iso)
                 result = validate_response(spec, result_raw)
             except ToolError as e:
                 tool_error = str(e)
@@ -219,8 +221,9 @@ def run_turn(contract: dict,
         soft = bool(t_spec and t_spec.soft_fail)
 
         try:
-            result_raw = tools[tname](targs)
-        except Exception as e:  # tool implementation raised
+            _to, _iso = tool_exec_opts(contract, tname)
+            result_raw = run_guarded(tools[tname], targs, timeout_s=_to, isolated=_iso)
+        except Exception as e:  # tool implementation raised, timed out, or crashed
             tool_error = f"tool raised: {e!r}"
             tool_call_log.append({"name": tname, "args": targs, "error": tool_error})
             if soft:

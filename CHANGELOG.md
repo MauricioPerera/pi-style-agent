@@ -5,7 +5,33 @@ the contract or the hard-layer guarantees change in a way that
 breaks older contracts. Minor bumps add features. Patches are
 documentation and tests only.
 
-## v0.5.2 — current
+## v0.5.3 — current
+
+Adds deterministic execution bounds for tool calls (the first piece of
+"Nivel 2"). Hard-layer only; the sealed boundary is intact.
+
+### Added
+- **`runtime/hard/sandbox.py` — `run_guarded(fn, args, *, timeout_s,
+  isolated)`.** A tool can hang or crash; the turn cannot. Default mode
+  runs the tool in a worker thread and bounds the *wait* (a hung thread
+  lingers but the turn regains control). Opt-in `isolated=True` runs it
+  in a separate `spawn` process that can be killed and that contains a
+  segfault. Timeouts and crashes surface as `ToolTimeout` / `ToolCrashed`.
+- **Contract keys `timeout_s` and `isolated` per tool**, read by
+  `tools.tool_exec_opts` and applied at both tool-dispatch sites in the
+  turn loop.
+- `tests/test_sandbox.py` (11 tests: threaded + isolated success / crash /
+  timeout, opts parsing).
+
+### Honest scope
+This bounds *liveness and blast radius*, not *privilege*. An isolated tool
+still runs with the agent's OS permissions; it is not a security sandbox.
+ARCHITECTURE.md's honest list is updated to say so.
+
+### Tests
+189 stdlib `unittest` tests.
+
+## v0.5.2
 
 Patch: hard-layer cleanup. No change to the contract or the sealed
 boundary; both fixes make existing behavior more correct, not different

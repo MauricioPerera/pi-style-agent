@@ -181,9 +181,16 @@ asking*.
   prompt. The model can still be convinced to ignore them. Output
   sanitization catches the most common leak (a credential in the
   reply) but cannot prevent all misuse.
-- **Tool execution security.** If a tool executes a shell command,
-  the agent is at the mercy of the tool''s sandbox. CCDD does not
-  sandbox tools; it just validates their return shape.
+- **Tool execution security (partial).** Tool calls now run under
+  `runtime/hard/sandbox.py`: a wall-clock timeout, crash containment,
+  and an opt-in `isolated` mode that runs the tool in a separate,
+  killable process. That bounds *liveness and blast radius* — a hung
+  or crashing tool no longer takes down the turn. It does **not** bound
+  *privilege*: an isolated tool still runs with the agent''s OS
+  permissions. For untrusted code that shells out, you still need
+  OS-level confinement (containers, seccomp, a restricted user). The
+  hard layer validates a tool''s return shape and bounds its execution;
+  it does not jail it.
 - **RAG factuality.** The RAG retriever returns the top-k by
   similarity. The LLM may still misread them. If the corpus has
   stale or wrong docs, the agent will use them.
