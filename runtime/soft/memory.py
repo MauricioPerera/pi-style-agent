@@ -28,6 +28,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from runtime.hard.crypto import decrypt_str, encrypt_str, is_encrypted
+from runtime.hard.statelock import write_atomic
 from typing import Iterable, Protocol
 
 
@@ -142,7 +143,7 @@ class Memory:
         }, indent=2, ensure_ascii=False)
         if passphrase:
             blob = encrypt_str(blob, passphrase)
-        path.write_text(blob + "\n", encoding="utf-8")
+        write_atomic(path, blob + "\n")
 
 
 # --- retriever protocol + a tiny in-memory implementation ------------------
@@ -376,7 +377,7 @@ def save_index(path: Path, items: Iterable["MemoryItem"],
     blob = json.dumps([i.to_dict() for i in items], indent=2, ensure_ascii=False)
     if passphrase:
         blob = encrypt_str(blob, passphrase)
-    path.write_text(blob + "\n", encoding="utf-8")
+    write_atomic(path, blob + "\n")
 
 
 def load_index(path: Path, passphrase: str | None = None) -> list["MemoryItem"]:

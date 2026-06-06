@@ -40,6 +40,10 @@ The hard layer. Deterministic, no LLM calls. All the code that
   + Fernet (authenticated AES, via `cryptography`). Tamper-evident and
   fails closed; never silently falls back to plaintext. Optional
   dependency, lazy-imported.
+- [statelock.py](statelock.py) — state integrity. `write_atomic`
+  (temp + `os.replace`, so a crash mid-write never leaves a torn file)
+  and `state_lock` (an advisory `O_EXCL` file lock that serializes
+  concurrent writers, breaks stale locks). Pure stdlib, cross-platform.
 
 ## How the layers meet
 
@@ -55,6 +59,7 @@ The soft layer (chat loop, turn loop) calls into the hard layer
 | `run_guarded(fn, args, *, timeout_s, isolated)` | `sandbox.py` | A tool can hang or crash; the turn cannot. Bounds the wait, contains the failure. |
 | `validate(data, schema)` | `schema.py` | One validator shared by the tool check and the guardrail. |
 | `encrypt_str`, `decrypt_str`, `is_encrypted` | `crypto.py` | Encryption at rest. Fails closed; never writes plaintext when asked to encrypt. |
+| `write_atomic`, `state_lock` | `statelock.py` | A crash mid-write must not corrupt state; concurrent writers must not clobber it. |
 
 The hard layer never calls into the soft layer. If you find yourself
 adding an import from `runtime/soft/` inside `runtime/hard/`, stop —

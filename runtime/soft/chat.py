@@ -26,6 +26,7 @@ from runtime.soft.lms import warmup_embeddings
 from runtime.soft.memory import (
     HashingRetriever, Memory, load_index, save_index,
 )
+from runtime.hard.statelock import state_lock
 
 
 class ChatState:
@@ -69,13 +70,17 @@ class ChatState:
         self.state_dir.mkdir(parents=True, exist_ok=True)
         mem_path = self.state_dir / "memory.json"
         idx_path = self.state_dir / "index.json"
-        self.memory.save(mem_path, passphrase=self.passphrase)
-        # Sync the retriever with whatever the model just wrote.
-        self.retriever._items.clear()
-        self.retriever._vecs.clear()
-        for it in self.memory.items:
-            self.retriever.add(it)
-        save_index(idx_path, self.retriever._items.values(), passphrase=self.passphrase)
+        # Serialize the whole write against other processes sharing this
+        # state dir; each file is also written atomically (temp + replace),
+        # so a crash mid-persist never leaves a torn JSON file.
+        with state_lock(self.state_dir):
+            self.memory.save(mem_path, passphrase=self.passphrase)
+            # Sync the retriever with whatever the model just wrote.
+            self.retriever._items.clear()
+            self.retriever._vecs.clear()
+            for it in self.memory.items:
+                self.retriever.add(it)
+            save_index(idx_path, self.retriever._items.values(), passphrase=self.passphrase)
 
 
 def _format_reply(result: TurnResult) -> str:

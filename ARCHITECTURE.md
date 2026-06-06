@@ -194,9 +194,14 @@ asking*.
 - **RAG factuality.** The RAG retriever returns the top-k by
   similarity. The LLM may still misread them. If the corpus has
   stale or wrong docs, the agent will use them.
-- **Memory consistency across forks.** A single Memory object is
-  sequential; if you run two agents in parallel that share memory,
-  they will race. Use external locking or split by tenant.
+- **Memory consistency across forks (partial).** Persistence is now
+  crash-safe and corruption-safe: each file is written atomically
+  (`write_atomic`) and the whole persist is serialized by an advisory
+  lock (`state_lock`) — see `runtime/hard/statelock.py`. So two agents
+  sharing a `state/` no longer tear or interleave each other's writes.
+  What is still NOT solved: **lost updates**. Two long-lived agents that
+  each loaded the state at startup will have the later writer win whole.
+  For real multi-writer correctness, split state by tenant.
 - **Encrypted at rest (opt-in, done).** Set `PI_STATE_PASSPHRASE` and the
   persisted `state/` (memory + index) is encrypted with scrypt + Fernet
   (`runtime/hard/crypto.py`). Authenticated, so a tampered blob fails

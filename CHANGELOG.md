@@ -5,7 +5,31 @@ the contract or the hard-layer guarantees change in a way that
 breaks older contracts. Minor bumps add features. Patches are
 documentation and tests only.
 
-## v0.5.4 — current
+## v0.5.5 — current
+
+Adds state integrity under crashes and concurrency (Nivel 2, third piece).
+Completes Nivel 2.
+
+### Added
+- **`runtime/hard/statelock.py`** — `write_atomic` (temp file + `os.replace`,
+  so a crash mid-write never leaves a torn JSON file) and `state_lock` (an
+  advisory `O_EXCL` file lock that serializes concurrent writers and breaks
+  stale locks). Pure stdlib, cross-platform.
+- `Memory.save` / `save_index` now write atomically; `ChatState.persist`
+  takes the lock around the whole read-modify-write.
+- `tests/test_statelock.py` (8 tests: atomic write, mutual exclusion,
+  re-acquire, stale-lock breaking).
+
+### Honest scope
+This prevents *corruption* (torn files, interleaved writes). It does NOT
+prevent *lost updates* between two long-lived agents that each loaded the
+state at startup — the later writer wins. Real multi-writer correctness
+needs per-tenant state. ARCHITECTURE.md's honest list says so.
+
+### Tests
+208 stdlib `unittest` tests.
+
+## v0.5.4
 
 Adds encryption at rest for persisted state (Nivel 2, second piece).
 Opt-in; default behavior (plaintext) is unchanged.
