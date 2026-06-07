@@ -212,6 +212,33 @@ class TestEndToEndAdversarial(unittest.TestCase):
         # It was stored, but redacted.
         self.assertTrue(any("[REDACTED:openai_key]" in it.value for it in mem.items))
 
+    def test_secret_in_reply_not_left_raw_in_audit_record(self):
+        # Regression: sanitization redacted the user-facing reply and memory,
+        # but the RAW reply still landed in record["llm"] and record["reply"]
+        # — the audit log kept the secret in the clear while telling the user
+        # it was redacted. The whole audit record must be free of the raw
+        # secret (in body, plan, and the llm text copy), while still keeping
+        # the sanitization record that PROVES a redaction happened.
+        import json as _json
+        from runtime.soft.agent import run_turn
+        from runtime.soft.llm import LLMResponse
+
+        secret = "sk-ABCDEFGHIJKLMNOPQRSTUVWX0123"
+
+        def leaky_llm(system, user, model=""):
+            return LLMResponse(
+                text=f"key is {secret} <<<PLAN>>>\nuse {secret}\n<<<END>>>",
+                model="stub", tokens_in=0, tokens_out=0)
+
+        rec = run_turn(self.contract, self._contents("hola"),
+                       audit_dir=self.tmp, llm_callable=leaky_llm)
+        self.assertEqual(rec.outcome, "ok")
+        blob = _json.dumps(rec.audit_record, ensure_ascii=False)
+        self.assertNotIn(secret, blob, "raw secret leaked into the audit record")
+        self.assertIn("sanitization", rec.audit_record)  # redaction still proven
+        # plan carried to next turn is redacted too
+        self.assertNotIn(secret, rec.plan_next or "")
+
     def test_memory_delta_block_not_shown_to_user(self):
         # Regression: the <<<MEMORY-DELTA>>> block is machinery, stripped from
         # the user-facing reply.

@@ -5,7 +5,32 @@ the contract or the hard-layer guarantees change in a way that
 breaks older contracts. Minor bumps add features. Patches are
 documentation and tests only.
 
-## v0.5.15 — current
+## v0.5.16 — current
+
+Closes the audit half of the v0.5.8 secret-redaction fix.
+
+### Fixed
+- **Raw secret left in the audit record.** v0.5.8 redacted the user-facing
+  reply and memory, but the turn loop built `record["llm"]` (`asdict(resp)`,
+  raw `resp.text`) and `record["reply"].body_preview` BEFORE sanitizing — so a
+  secret the model emitted in its reply was redacted for the user yet
+  persisted in the clear in `audit/turn-*.json`. The audit promised redaction
+  it didn't deliver. Now sanitization runs before ANY field is built from the
+  reply: the audit's llm text, body preview, and plan/scratchpad (also carried
+  to the next turn) are all redacted, while the `sanitization` record still
+  proves a secret was redacted (label + 8-char preview). Found by an external
+  cross-repo review of audit-vs-secret persistence.
+- tests: 1 regression — a secret in the reply (and plan) appears nowhere in
+  the audit record, but the sanitization record is still present.
+
+### Note
+The *blocked-input* case was already safe: a blocked turn records only
+`slot_hashes` (hashes), never the raw payload.
+
+### Tests
+237 stdlib `unittest` tests.
+
+## v0.5.15
 
 Turns the v0.5.14 fix into a defended invariant. Tests only.
 

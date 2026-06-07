@@ -260,20 +260,27 @@ def run_turn(contract: dict,
         _write(audit_dir, ts, record)
         return TurnResult("tool_error", "", None, None, {}, record)
 
+    # Output sanitization FIRST, before we build ANY field — audit, return, or
+    # memory — out of the model's reply. A leaked secret is redacted in every
+    # place it could be persisted: the user message, memory, plan/scratchpad
+    # carried to the next turn, AND the audit record. The audit keeps the
+    # `sanitization` record (labels + 8-char previews) to prove a secret was
+    # redacted, but never the secret in full. (Earlier this redacted the user
+    # reply and memory but left the RAW reply in record["llm"]/record["reply"].)
+    san = sanitize(reply.body)
+    plan_clean = sanitize(reply.plan).text if reply.plan else reply.plan
+    scratch_clean = sanitize(reply.scratchpad).text if reply.scratchpad else reply.scratchpad
+
     record["outcome"] = "ok"
-    record["llm"] = asdict(resp)
-    record["reply"] = {"plan": reply.plan, "scratchpad": reply.scratchpad,
-                       "body_preview": reply.body[:200]}
+    llm_record = asdict(resp)
+    llm_record["text"] = san.text  # redacted copy; never the raw secret
+    record["llm"] = llm_record
+    record["reply"] = {"plan": plan_clean, "scratchpad": scratch_clean,
+                       "body_preview": strip_delta(san.text)[:200]}
     if tool_call_log:
         record["tool_log"] = tool_call_log
     if tool_called_history:
         record["tool_called"] = tool_called_history
-
-    # Output sanitization FIRST. Deterministic redaction of secrets / PII in
-    # the assistant reply. Hard layer. Never aborts. We sanitize before we
-    # read ANYTHING structured out of the reply, so a leaked secret is redacted
-    # before it can reach persistent memory or the audit log.
-    san = sanitize(reply.body)
     if not san.clean:
         record["sanitization"] = {
             "redacted": san.redacted,
@@ -297,8 +304,8 @@ def run_turn(contract: dict,
     return TurnResult(
         outcome="ok",
         user_message=user_message,
-        plan_next=reply.plan,
-        scratchpad_next=reply.scratchpad,
+        plan_next=plan_clean,
+        scratchpad_next=scratch_clean,
         memory_delta=delta,
         audit_record=record,
     )
