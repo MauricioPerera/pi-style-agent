@@ -94,7 +94,7 @@ pi-style-agent/
   audit/                    # one JSON per turn (also audit_demo* from runs)
   state_demo/               # persisted memory.json + index.json
   config/
-  tests/                    # 234 stdlib unittest tests, 0 LLM calls in the loop
+  tests/                    # 235 stdlib unittest tests, 0 LLM calls in the loop
     test_hard.py            #   budget, secrets, guardrails, output sanitize
     test_tools.py           #   tool schema validation
     test_memory.py          #   memory, plan/scratch, retrievers, Matryoshka dim
@@ -268,7 +268,7 @@ prior context. Re-run the demo to see this in action.
 
 ```bash
 # Tests (no LLM, ~20s for the deterministic suite; ~85s with live
-# server tests; 234 tests total)
+# server tests; 235 tests total)
 python -m unittest discover -s tests -p "test_*.py" -v
 
 # Offline demo (deterministic, no LM Studio needed)
@@ -331,3 +331,27 @@ takes ~10–15 min on a 12B model.
 - **Multi-step tool chains with depth tracking**: the runner already
   supports depth; adding per-step budget tracking and a separate
   scratchpad for the chain is straightforward.
+
+## Security model — what it does and does NOT guarantee
+
+The hard/soft seam bounds what a *convinced* model can do; it does not try
+to stop the model from being convinced. Read [`ARCHITECTURE.md`](ARCHITECTURE.md)'s
+"honest list" before trusting any of this in anger. In short:
+
+- **Secret guardrails are regex.** They block known shapes (`sk-…`, AWS,
+  PEM, GitHub PAT, Slack) on input and redact them on output. A secret in
+  a non-standard format, a DB password, or a base64 blob passes clean.
+  This is a first line, **not** a guarantee — the gaps are pinned in
+  `tests/test_adversarial.py::TestDocumentedGaps`.
+- **Prompt injection is not detected.** Defending against "ignore your
+  instructions" is left to bounding *consequences* (output sanitization,
+  tool schema + confirm + sandbox, memory sanitized on load and kept out
+  of the system prompt), not to detecting the injection text.
+- **The tool sandbox bounds liveness and blast radius, not privilege.** An
+  isolated tool still runs with your OS permissions. For effectful tools
+  (shell, filesystem, network) on untrusted input, put a container/VM
+  underneath — this agent blinds the *model*, not the *environment*.
+
+## License
+
+[MIT](LICENSE). Borrow freely.

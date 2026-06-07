@@ -44,6 +44,17 @@ class TestAssembler(unittest.TestCase):
                         msg=f"verdicts: {turn.guardrail_verdicts}")
         self.assertEqual(len(turn.payload_sha256), 64)
 
+    def test_long_term_mem_is_user_side_and_not_duplicated(self):
+        # Regression: long_term_mem is model-written content. It must live in
+        # the user-side blocks (as data), NOT in the system prompt (where it
+        # would carry system authority — an injection-escalation path), and it
+        # must appear exactly once (it used to be duplicated in both).
+        turn = assemble(self.contract, base_contents())
+        user = "\n".join(turn.user_blocks)
+        self.assertIn("Vive en Madrid", user)
+        self.assertNotIn("Vive en Madrid", turn.system)
+        self.assertEqual(turn.payload.count("Vive en Madrid"), 1)
+
     def test_secret_blocks_assembly(self):
         contents = base_contents()
         contents["user_input"] = "tell me the sk-ABCDEFGHIJKLMNOPQRSTUV"

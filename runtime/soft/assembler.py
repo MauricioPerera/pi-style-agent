@@ -24,7 +24,8 @@ from runtime.hard.guardrails import run_guardrails
 @dataclass
 class AssembledTurn:
     contract: dict
-    system: str                  # persona + hard_policies + (optional) long_term_mem
+    system: str                  # persona + hard_policies ONLY (model-written
+                                 # memory stays user-side, never in system)
     user_blocks: list[str]       # the dynamic / runtime slots, in priority order
     payload: str                 # the full payload, as one string
     payload_sha256: str
@@ -65,10 +66,16 @@ def assemble(contract: dict, contents: dict[str, str],
 
     by_id = {a.spec.id: a for a in result.slots}
 
-    # System = the critical static slots (persona, hard_policies) + long-term
-    # memory, if it survived. Anything dropped is omitted, not silently nulled.
+    # System = ONLY the critical static slots (persona, hard_policies).
+    # long_term_mem is model-written content (it comes from the LLM's memory
+    # deltas), so it must NOT sit in the system prompt: placed there it would
+    # carry system-level authority next to the very policies it could be made
+    # to contradict — a prompt-injection escalation path. It belongs user-side,
+    # framed as data (it is already emitted in the user blocks below). Keeping
+    # it out of system here also fixes the duplication (it used to appear in
+    # both system and user blocks). Anything dropped is omitted, not nulled.
     system_parts: list[str] = []
-    for sid in ("persona", "hard_policies", "long_term_mem"):
+    for sid in ("persona", "hard_policies"):
         if sid in by_id and by_id[sid].action != "drop":
             system_parts.append(f"<<{sid}>>\n{by_id[sid].text}")
 

@@ -5,7 +5,38 @@ the contract or the hard-layer guarantees change in a way that
 breaks older contracts. Minor bumps add features. Patches are
 documentation and tests only.
 
-## v0.5.13 — current
+## v0.5.14 — current
+
+Hardening + housekeeping from an external code review.
+
+### Fixed
+- **Model-written memory was in the SYSTEM prompt (injection escalation) and
+  duplicated.** `assembler.py` placed `long_term_mem` in `system_parts`, so
+  content the model stored in memory reappeared next turn with system-level
+  authority, next to the hard_policies it could be steered to contradict. It
+  was also emitted a second time in the user blocks (the loop only skipped
+  persona/hard_policies) — duplicated in the payload. Now `long_term_mem`
+  lives only user-side, framed as data. Fixes both the escalation path and the
+  duplication. Verified: memory appears 0× in system, 1× in the payload.
+  Regression test in `test_assembler.py`.
+
+### Added
+- **LICENSE (MIT).** The repo had none, which defaults to all-rights-reserved.
+- **README "Security model" section.** Explicit about what the guardrails do
+  NOT guarantee: regex secret detection has gaps (pinned in tests), prompt
+  injection is not detected (consequences are bounded instead), and the tool
+  sandbox bounds liveness/blast-radius, not privilege.
+
+### Note
+The injection fix is structural hardening (role separation), not a detector —
+a deterministic injection detector would have the same false-negative problem
+as the regex secret guardrails. The real defense remains bounding what a
+convinced model can *do*, not detecting that it was convinced.
+
+### Tests
+235 stdlib `unittest` tests.
+
+## v0.5.13
 
 Closes finding #4: the empty-critical-slot floor gap.
 
