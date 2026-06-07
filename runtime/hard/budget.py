@@ -101,6 +101,11 @@ def allocate(slots: Iterable[SlotSpec], contents: dict[str, str], available: int
     - Non-critical slots are truncated or dropped, never raised in priority.
     - `min_tokens` is a floor: if a slot would fall below it, we abort
       (a 0-token persona is worse than refusing to answer).
+    - A critical slot that declares a floor (`min_tokens > 0`) but receives
+      EMPTY content aborts. Without this, `floor = min(want, min_tokens)`
+      collapses to 0 when `want == 0`, so an empty persona/hard_policies slot
+      would slip through silently — exactly the "0-token persona" case above.
+      Short-but-present content still passes (the floor stays lenient for it).
     """
     remaining = available
     out: list[AllocatedSlot] = []
@@ -120,6 +125,12 @@ def allocate(slots: Iterable[SlotSpec], contents: dict[str, str], available: int
                     slots=out, used_tokens=available - remaining,
                     available_tokens=available,
                     aborted=f"slot critico '{spec.id}' no entra ({want} tok pedidos, {remaining} disponibles)",
+                )
+            if spec.min_tokens > 0 and want == 0:
+                return AllocationResult(
+                    slots=out, used_tokens=available - remaining,
+                    available_tokens=available,
+                    aborted=f"slot critico '{spec.id}' vacio (requiere min_tokens={spec.min_tokens})",
                 )
             grant = want
             action = "full"

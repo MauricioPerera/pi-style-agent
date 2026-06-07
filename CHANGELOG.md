@@ -5,7 +5,30 @@ the contract or the hard-layer guarantees change in a way that
 breaks older contracts. Minor bumps add features. Patches are
 documentation and tests only.
 
-## v0.5.12 — current
+## v0.5.13 — current
+
+Closes finding #4: the empty-critical-slot floor gap.
+
+### Fixed
+- **`budget.py` — an empty critical slot slipped through its floor.** The
+  check was `floor = min(want, spec.min_tokens)`, which collapses to 0 when
+  `want == 0`. So a critical slot (`compaction: "none"`) with a declared
+  `min_tokens` but EMPTY content passed silently — the docstring promised the
+  opposite ("a 0-token persona is worse than refusing to answer"). Now a
+  critical slot with `min_tokens > 0` and empty content aborts. Short-but-
+  present content still passes (the floor stays lenient for it, so tiny-
+  persona test fixtures keep working), and non-critical slots may still be
+  empty (e.g. `long_term_mem` on the first run).
+- **Defense in depth:** this also backstops finding #3. If the empty-
+  hard_policies bug were ever reintroduced, `assemble` now aborts loudly
+  instead of running with no safety policies in the prompt.
+- tests: 3 (empty critical aborts; short critical passes; empty non-critical
+  tolerated).
+
+### Tests
+234 stdlib `unittest` tests.
+
+## v0.5.12
 
 Closes the residual half of the v0.5.8 security fix.
 

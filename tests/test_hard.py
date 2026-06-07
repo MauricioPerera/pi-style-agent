@@ -73,6 +73,41 @@ class TestBudgetAllocation(unittest.TestCase):
         # Whichever critical is processed first gets reported.
         self.assertTrue(r.aborted.startswith("slot critico"))
 
+    def test_critical_empty_slot_aborts(self):
+        # A critical slot with a declared floor but empty content must abort,
+        # not slip through. Before the fix, floor = min(want, min_tokens)
+        # collapsed to 0 when want == 0 and the empty slot passed silently.
+        r = allocate(
+            [self.PERSONA, self.POLICIES],
+            {"persona": "", "hard_policies": "b" * 80},
+            available=200,
+        )
+        self.assertIsNotNone(r.aborted)
+        self.assertIn("persona", r.aborted)
+        self.assertIn("vacio", r.aborted)
+
+    def test_critical_short_content_still_passes(self):
+        # Short-but-present content on a critical slot is fine (the floor is
+        # only strict about EMPTY). This is what keeps tiny-persona test
+        # fixtures working.
+        r = allocate(
+            [self.PERSONA, self.POLICIES],
+            {"persona": "Iris.", "hard_policies": "no secrets."},
+            available=200,
+        )
+        self.assertIsNone(r.aborted)
+
+    def test_noncritical_empty_slot_tolerated(self):
+        # A non-critical slot (e.g. long_term_mem on the first run) may be
+        # empty even with a min_tokens declared. Must NOT abort.
+        r = allocate(
+            [self.PERSONA, self.POLICIES, self.MEM],
+            {"persona": "Iris.", "hard_policies": "no secrets.",
+             "long_term_mem": ""},
+            available=200,
+        )
+        self.assertIsNone(r.aborted)
+
     def test_low_priority_dropped_under_pressure(self):
         r = allocate(
             [self.PERSONA, self.POLICIES, self.TOOLS, self.HISTORY],
