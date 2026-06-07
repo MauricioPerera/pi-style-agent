@@ -23,7 +23,7 @@ across turns. All the code that *reacts* to what the model says.
   `openai` for the official client, `lmstudio` for a local server
   via `urllib` (no extra deps). Selection via `PI_LLM_PROVIDER`.
 - [embeddings.py](embeddings.py) — the embeddings client and
-  retriever factory for LM Studio''s `/v1/embeddings`. Supports
+  retriever factory for LM Studio's `/v1/embeddings`. Supports
   Matryoshka truncation dim via `PI_EMBED_DIM` (default 256).
 - [lms.py](lms.py) — thin wrapper around the `lms` CLI. Pre-loads
   a model and pings it to warm the connection. The demo calls
@@ -33,7 +33,7 @@ across turns. All the code that *reacts* to what the model says.
   `DecayingRetriever`. The chat loop touches items after every
   retrieval so the decay wrapper keeps them fresh.
 - [plan.py](plan.py) — parses `<<<PLAN>>>` and `<<<SCRATCHPAD>>>`
-  tags out of the LLM''s reply. `AgentReply.plan` and
+  tags out of the LLM's reply. `AgentReply.plan` and
   `AgentReply.scratchpad` are what the chat loop carries to the
   next turn.
 - [rag.py](rag.py) — `RAGIndex`. Wraps any retriever with a
@@ -41,7 +41,7 @@ across turns. All the code that *reacts* to what the model says.
   returns a string with `[source: <doc_name>, score=…]` headers
   for attribution.
 
-## State that lives here vs state that doesn''t
+## State that lives here vs state that doesn't
 
 - **In `ChatState`:** plan, scratchpad, history, the most-recent
   audit path, the pending confirmation, the retriever, the RAG
@@ -50,7 +50,7 @@ across turns. All the code that *reacts* to what the model says.
   survives across sessions, persisted to `state/`.
 - **In `RAGIndex`:** the indexed chunks; loaded from `docs/` (or
   wherever) at startup.
-- **NOT here:** the LLM''s reply text (lives one turn), the model
+- **NOT here:** the LLM's reply text (lives one turn), the model
   itself (in `llm.py` only), the audit log (in `audit/` as JSON).
 
 ## How to add a new tool

@@ -319,7 +319,7 @@ untouched.
 - **Budget:** tiktoken-based token estimation with `chars/4` fallback.
 - **Guardrails:** `regex_deny` + `json_schema` (input side, fails closed).
 - **Output sanitization:** deterministic redaction of secrets in
-  the assistant''s reply.
+  the assistant's reply.
 - **Tools:** registry with schema validation, `confirm: true`
   gate for irreversible actions, `soft_fail: true` for graceful
   schema failures.
@@ -335,7 +335,7 @@ untouched.
   `DecayingRetriever` (wraps any retriever, time-decay).
 - **RAG:** `RAGIndex` over any retriever, with chunking,
   provenance rendering, and chat-loop auto-injection.
-- **Plan / scratchpad:** tags in the LLM''s reply, carried across
+- **Plan / scratchpad:** tags in the LLM's reply, carried across
   turns by the chat loop.
 - **Confirmation flow:** `outcome="awaiting_confirm"` with the
   pending call in `TurnResult.pending_confirm`; the chat loop
@@ -369,7 +369,7 @@ tests). No LLM in the deterministic suite.
 
 ## How to read the project at v0.5
 
-If you''re new, the order is:
+If you're new, the order is:
 
 1. [README.md](README.md) — what it is, how to run it.
 2. [ARCHITECTURE.md](ARCHITECTURE.md) — why it is the way it is.

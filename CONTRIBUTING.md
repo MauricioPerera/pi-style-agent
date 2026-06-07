@@ -18,14 +18,14 @@ explains the rules. The most important rule:
 > validates it.
 
 If your change crosses the seam in the other direction (hard layer
-imports from soft), it''s wrong. If your change has the LLM decide
-something that should be hard-decided, it''s wrong.
+imports from soft), it's wrong. If your change has the LLM decide
+something that should be hard-decided, it's wrong.
 
 ## Where to add code
 
 - **New guardrail (input side)** → `runtime/hard/guardrails.py`. The
   pattern is a function that takes a string and returns a verdict.
-  The contract''s `guardrails[]` array is where it gets wired in.
+  The contract's `guardrails[]` array is where it gets wired in.
 - **New output filter** → `runtime/hard/output_sanitize.py`. The
   pattern is a regex + a label; the default patterns are in
   `runtime/hard/secrets.py`.
@@ -96,11 +96,11 @@ python demo_live.py
 
 ## What NOT to do
 
-- **Don''t** add a `class AgentConfig: …` mega-config. The contract
+- **Don't** add a `class AgentConfig: …` mega-config. The contract
   is JSON; the chat state is dataclasses; the retriever is a
   protocol. Adding a config class is a smell.
-- **Don''t** make the LLM responsible for sanitization, validation,
+- **Don't** make the LLM responsible for sanitization, validation,
   or any state transition. Every transition is hard.
-- **Don''t** add a feature that the model has to remember to use
+- **Don't** add a feature that the model has to remember to use
   (e.g. a magic prefix in the user message). If the LLM can
   forget it, the feature is unreliable.

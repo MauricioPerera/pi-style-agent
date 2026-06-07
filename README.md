@@ -1,7 +1,7 @@
 # pi-style-agent
 
 A personal/async agent skeleton that borrows the **durable ideas** from
-[CCDD](../ccdd) — slots with explicit priority, deterministic guardrails, the
+[CCDD](https://github.com/MauricioPerera/ccdd) — slots with explicit priority, deterministic guardrails, the
 hard/soft split, and bit-a-bit auditability — without adopting its ceremony
 (versioned `context.yaml`, Ed25519 attestations, CI gate R1–R9, quorum). Those
 are designed for **teams shipping agents through PRs**; this skeleton is
@@ -16,7 +16,7 @@ configurable via env vars.
 
 - [README.md](README.md) — what the project is, how to run it (you are here).
 - [ARCHITECTURE.md](ARCHITECTURE.md) — the hard/soft split, the seam,
-  what the LLM is and isn''t trusted to do. **Read this second.**
+  what the LLM is and isn't trusted to do. **Read this second.**
 - [CHANGELOG.md](CHANGELOG.md) — what changed in each version and the
   rationale.
 - [CONTRIBUTING.md](CONTRIBUTING.md) — how to add code, where each
@@ -36,12 +36,12 @@ configurable via env vars.
   truncated in that order when the budget runs out.
 - **Deterministic pre-inference guardrails** (`runtime/hard/guardrails.py`):
   `regex_deny` (catches `sk-…`, AWS keys, PEM private keys, GitHub PATs, Slack
-  tokens) and `json_schema` (validates a slot''s contents). Fails closed.
+  tokens) and `json_schema` (validates a slot's contents). Fails closed.
 - **Tool registry with schema-validated responses** (`runtime/hard/tools.py`):
   every tool declares its response shape; the runner validates before the
   result is allowed into the prompt. Bad shape → `tool_error`, no LLM call.
 - **Output sanitization** (`runtime/hard/output_sanitize.py`): mirror of the
-  input regex_deny, but on the assistant''s reply. Redacts leaked secrets
+  input regex_deny, but on the assistant's reply. Redacts leaked secrets
   with `[REDACTED:<label>]` instead of aborting the turn — a redacted reply
   is still useful, and the audit log records what was redacted.
 - **Multi-step tool loop** with a hard depth cap. The LLM can chain
@@ -52,12 +52,12 @@ configurable via env vars.
   different args, ask the user, or fall back to a different tool.
 - **Confirmation gate for irreversible actions**: a tool declared
   `confirm: true` in the contract is never dispatched without the
-  human''s explicit `/confirm`. The runner returns `outcome="awaiting_confirm"`
+  human's explicit `/confirm`. The runner returns `outcome="awaiting_confirm"`
   and the chat loop surfaces the question. The next turn dispatches or
   rejects.
 - **Bit-a-bit audit log** (`audit/turn-*.json`): per turn, the hashes of every
   slot, the assembled payload hash, the guardrail verdict, the tool call
-  log, the sanitization record, the model''s reply preview, and the memory
+  log, the sanitization record, the model's reply preview, and the memory
   delta. Reproducible byte-a-byte.
 
 ## What we deliberately did NOT take
@@ -178,7 +178,7 @@ Each tool is declared in the contract with:
 
 The runner:
 
-1. Parses the LLM''s `<<<TOOL_CALL>>>{"name":..., "args":{...}}`.
+1. Parses the LLM's `<<<TOOL_CALL>>>{"name":..., "args":{...}}`.
 2. If the tool is confirmable, **does not dispatch** — returns
    `outcome="awaiting_confirm"` with the pending call. The chat loop
    shows `[awaiting confirm] delete_user(...)` and the user types
@@ -208,10 +208,10 @@ The only place hard and soft code meet is in the agent loop:
 5. llm_callable(system, user)                ← soft: first round
 6. parse tool calls (if any)                 ← hard: regex, JSON parse
 7. dispatch tool, validate shape             ← hard: schema check
-8. if schema failed and soft_fail: feed      ← hard: feed back, don''t abort
+8. if schema failed and soft_fail: feed      ← hard: feed back, don't abort
    rejection to LLM
 9. llm_callable(followup)                   ← soft: next round
-10. sanitize(final reply)                     ← hard: redact secrets, don''t abort
+10. sanitize(final reply)                     ← hard: redact secrets, don't abort
 11. apply_delta(memory, delta)               ← soft: model decides what to remember
 12. write audit/turn-<ts>.json               ← hard: append-only log
 ```
@@ -254,13 +254,13 @@ Commands (start with `/`):
 - `/help` this list
 
 Plan and scratchpad carry over across turns automatically (the
-runner extracts them from the model''s reply and the chat loop feeds
+runner extracts them from the model's reply and the chat loop feeds
 them back as slot contents in the next turn).
 
 ## Persistence
 
 After every turn, the demo persists `Memory` (JSON) and the
-retriever''s items (JSON, vectors re-computed on load) to
+retriever's items (JSON, vectors re-computed on load) to
 `state_dir/`. The next run loads them and the agent starts with
 prior context. Re-run the demo to see this in action.
 

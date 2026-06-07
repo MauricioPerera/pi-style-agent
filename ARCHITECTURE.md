@@ -54,7 +54,7 @@ touch. Every step is one of three kinds:
 | `llm_callable(system, user)` | soft | The model produces a reply. The reply is opaque until the next hard step parses it. |
 | Tool-call extraction | hard | `<<<TOOL_CALL>>>{...}` is parsed by a regex + a JSON-load; the result is a dict or `None`. The LLM cannot inject anything that bypasses this parser. |
 | Tool dispatch + schema validation | hard | The tool runs; its return is checked against the declared schema. Bad shape → abort (`tool_error`) or feed back as a rejected result (`soft_fail: true`). The LLM cannot smuggle a tool result past the validator. |
-| Output sanitization | hard | The assistant''s reply is scanned for the same secret patterns as the input guardrail. Matches are replaced with `[REDACTED:<label>]`; the turn is never aborted on output. The LLM cannot exfiltrate a credential without it being redacted. |
+| Output sanitization | hard | The assistant's reply is scanned for the same secret patterns as the input guardrail. Matches are replaced with `[REDACTED:<label>]`; the turn is never aborted on output. The LLM cannot exfiltrate a credential without it being redacted. |
 | Memory delta apply | soft | The LLM emits `<<<MEMORY-DELTA>>>`. The runner parses it and applies the operations to the in-memory `Memory`. Keys are normalized to ASCII snake_case; collisions overwrite instead of duplicating. The LLM cannot store an un-normalized key. |
 | Audit log write | hard | Per-turn JSON written to `audit/turn-<ms>.json`. The file contains hashes of every slot, the guardrail verdicts, the tool call log, the sanitization record, the memory delta, and a `payload_sha256` of the exact prompt. Reproducible byte-a-byte. |
 
@@ -66,7 +66,7 @@ transition.
 ## What we explicitly do not trust the LLM to do
 
 This is the inverse of the previous section. Knowing what the LLM
-*can''t* do is half the architecture.
+*can't* do is half the architecture.
 
 - **Bound the number of tool calls.** The runner has a `tool_depth_cap`
   hard-side. A model in a loop calling the same tool forever will be
@@ -105,14 +105,14 @@ The priority layout used by the demo:
 ```
 priority 0  persona, hard_policies     ← never dropped
 priority 1  long_term_mem              ← memory survives long histories
-priority 2  plan, scratchpad           ← the agent''s working memory
+priority 2  plan, scratchpad           ← the agent's working memory
 priority 3  tool_results               ← dropped first under pressure
 priority 4  history, user_input        ← dropped first
 ```
 
 If you add a slot, pick a priority that matches its retention
 semantics, not its size. A `user_input` slot should be priority 4
-even if it''s small, because long histories are exactly when the
+even if it's small, because long histories are exactly when the
 budget is tight.
 
 ## The seam: `assemble()`
@@ -195,10 +195,10 @@ list gets updated — so this stays honest by construction.
   and an opt-in `isolated` mode that runs the tool in a separate,
   killable process. That bounds *liveness and blast radius* — a hung
   or crashing tool no longer takes down the turn. It does **not** bound
-  *privilege*: an isolated tool still runs with the agent''s OS
+  *privilege*: an isolated tool still runs with the agent's OS
   permissions. For untrusted code that shells out, you still need
   OS-level confinement (containers, seccomp, a restricted user). The
-  hard layer validates a tool''s return shape and bounds its execution;
+  hard layer validates a tool's return shape and bounds its execution;
   it does not jail it.
 - **RAG factuality.** The RAG retriever returns the top-k by
   similarity. The LLM may still misread them. If the corpus has
@@ -235,5 +235,5 @@ list gets updated — so this stays honest by construction.
   output regex redaction.
 - [`runtime/hard/tools.py`](runtime/hard/tools.py) — tool schema
   validation, confirmable + soft_fail flags.
-- [`docs/ARCHITECTURE.md`](../ccdd/.../ARCHITECTURE.md) (upstream) — the
+- [`ccdd_workflow.md`](https://github.com/MauricioPerera/ccdd/blob/main/ccdd_workflow.md) (upstream) — the
   CCDD methodology this project was distilled from.
