@@ -28,6 +28,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from runtime.hard.crypto import decrypt_str, encrypt_str, is_encrypted
+from runtime.hard.output_sanitize import sanitize
 from runtime.hard.statelock import write_atomic
 from typing import Iterable, Protocol
 
@@ -131,8 +132,13 @@ class Memory:
         raw = path.read_text(encoding="utf-8")
         raw = _maybe_decrypt(raw, passphrase, path)
         data = json.loads(raw)
-        m = cls(summary=data.get("summary", ""))
-        m.items = [MemoryItem(**i) for i in data.get("items", [])]
+        # Sanitize on load. State written by code before the v0.5.8 ordering
+        # fix could contain a raw secret (a delta applied pre-sanitize). If we
+        # loaded it verbatim, the scope:"all" no-secrets guardrail would block
+        # every turn. Redacting at the load boundary makes a poisoned file
+        # safe, and the next save persists the redacted form.
+        m = cls(summary=sanitize(data.get("summary", "")).text)
+        m.items = [_sanitize_item(i) for i in data.get("items", [])]
         return m
 
     def save(self, path: Path, passphrase: str | None = None) -> None:
@@ -365,6 +371,16 @@ def apply_delta(memory: Memory, delta: dict,
 
 # --- retriever persistence -------------------------------------------------
 
+def _sanitize_item(d: dict) -> MemoryItem:
+    """Rebuild a MemoryItem with its `value` run through the output sanitizer,
+    preserving every other field. Used on load so a secret persisted by old
+    code is redacted at the boundary rather than re-entering the prompt."""
+    d = dict(d)
+    if "value" in d:
+        d["value"] = sanitize(d["value"]).text
+    return MemoryItem(**d)
+
+
 def _maybe_decrypt(raw: str, passphrase: str | None, path: Path) -> str:
     """If `raw` is an encryption envelope, decrypt it (passphrase required);
     otherwise return it unchanged. Lets encrypted and plaintext state coexist
@@ -402,7 +418,8 @@ def load_index(path: Path, passphrase: str | None = None) -> list["MemoryItem"]:
         return []
     raw = _maybe_decrypt(path.read_text(encoding="utf-8"), passphrase, path)
     data = json.loads(raw)
-    return [MemoryItem(**d) for d in data]
+    # Same load-boundary sanitization as Memory.load (see _sanitize_item).
+    return [_sanitize_item(d) for d in data]
 
 
 

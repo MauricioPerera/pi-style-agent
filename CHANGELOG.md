@@ -5,7 +5,27 @@ the contract or the hard-layer guarantees change in a way that
 breaks older contracts. Minor bumps add features. Patches are
 documentation and tests only.
 
-## v0.5.11 — current
+## v0.5.12 — current
+
+Closes the residual half of the v0.5.8 security fix.
+
+### Fixed
+- **Poisoned state from before v0.5.8.** The v0.5.8 fix stopped secrets from
+  entering memory going forward, but a `state/` written by older code could
+  still hold a raw `sk-...`. On load it rendered into `long_term_mem` and the
+  `scope:"all"` no-secrets guardrail blocked *every* turn — a wedged agent.
+  `Memory.load` and `load_index` now run the output sanitizer over the summary
+  and item values at the load boundary, so a poisoned file loads redacted and
+  the next save persists it clean. Other fields (e.g. `last_accessed`) are
+  preserved.
+- tests: 4 regressions (raw secret redacted on memory + index load; a poisoned
+  file no longer wedges the guardrail end-to-end; non-secret fields/values
+  untouched).
+
+### Tests
+231 stdlib `unittest` tests.
+
+## v0.5.11
 
 Bug-fix batch from an independent full-repo review. Four fixes; the first is
 a security fix.

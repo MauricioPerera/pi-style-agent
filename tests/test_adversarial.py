@@ -233,5 +233,73 @@ class TestEndToEndAdversarial(unittest.TestCase):
         self.assertIn("Noted your city.", rec.user_message)
 
 
+class TestPoisonedStateSanitizedOnLoad(unittest.TestCase):
+    """State written before the v0.5.8 ordering fix could hold a raw secret.
+    Loading must redact it at the boundary so it cannot re-enter the prompt
+    and wedge the agent via the scope:"all" guardrail."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp(prefix="pi_poison_"))
+        from runtime.soft.assembler import load_contract
+        self.contract = load_contract(Path("contracts/agent-contract.json"))
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def _write_raw_memory(self):
+        # Simulate a pre-v0.5.8 file: raw secret in summary and an item.
+        p = self.tmp / "memory.json"
+        p.write_text(json.dumps({
+            "summary": "key is sk-ABCDEFGHIJKLMNOPQRSTUV",
+            "items": [{"key": "api_key",
+                       "value": "sk-ABCDEFGHIJKLMNOPQRSTUV",
+                       "last_accessed": 0}],
+        }), encoding="utf-8")
+        return p
+
+    def test_memory_load_redacts_raw_secret(self):
+        from runtime.soft.memory import Memory
+        m = Memory.load(self._write_raw_memory())
+        self.assertNotIn("sk-ABCDEFGHIJKLMNOPQRSTUV", m.summary)
+        for it in m.items:
+            self.assertNotIn("sk-ABCDEFGHIJKLMNOPQRSTUV", it.value)
+        self.assertIn("[REDACTED:openai_key]", m.items[0].value)
+
+    def test_load_index_redacts_raw_secret(self):
+        from runtime.soft.memory import load_index
+        p = self.tmp / "index.json"
+        p.write_text(json.dumps(
+            [{"key": "api_key", "value": "sk-ABCDEFGHIJKLMNOPQRSTUV",
+              "last_accessed": 0}]), encoding="utf-8")
+        items = load_index(p)
+        self.assertNotIn("sk-ABCDEFGHIJKLMNOPQRSTUV", items[0].value)
+
+    def test_poisoned_state_no_longer_wedges_guardrail(self):
+        # The end-to-end property: a poisoned file loads, renders into
+        # long_term_mem, and the no-secrets guardrail PASSES (was blocking).
+        from runtime.soft.assembler import assemble
+        from runtime.soft.memory import Memory
+        m = Memory.load(self._write_raw_memory())
+        contents = {
+            "persona": "Iris.", "hard_policies": "- no secrets.",
+            "long_term_mem": m.render(), "plan": "", "scratchpad": "",
+            "tool_results": json.dumps({"tool": "none", "ok": True, "data": []}),
+            "history": "", "user_input": "hola",
+        }
+        turn = assemble(self.contract, contents)
+        self.assertTrue(turn.guardrails_passed)
+
+    def test_last_accessed_preserved_through_sanitize(self):
+        # Sanitizing on load must not drop other fields.
+        from runtime.soft.memory import load_index
+        p = self.tmp / "index.json"
+        p.write_text(json.dumps(
+            [{"key": "city", "value": "Madrid", "last_accessed": 1234}]),
+            encoding="utf-8")
+        items = load_index(p)
+        self.assertEqual(items[0].last_accessed, 1234)
+        self.assertEqual(items[0].value, "Madrid")  # clean value untouched
+
+
 if __name__ == "__main__":
     unittest.main()
