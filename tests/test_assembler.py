@@ -55,6 +55,29 @@ class TestAssembler(unittest.TestCase):
         self.assertNotIn("Vive en Madrid", turn.system)
         self.assertEqual(turn.payload.count("Vive en Madrid"), 1)
 
+    def test_system_prompt_contains_only_static_slots(self):
+        # Invariant (not a single field): the system prompt carries ONLY
+        # contract-written *static* slots. Every dynamic/runtime slot —
+        # model-written memory/plan/scratchpad, tool output, history, user
+        # input — must stay user-side, framed as data. This protects the
+        # CATEGORY, so adding a new model-written slot to the system tuple
+        # later (reopening the injection-escalation path) trips this test,
+        # not just a regression on long_term_mem by name.
+        contents = base_contents()
+        markers = {}
+        for slot in self.contract["slots"]:
+            if slot["kind"] != "static":
+                mark = f"ZZ{slot['id'].upper()}ZZ"
+                markers[slot["id"]] = mark
+                contents[slot["id"]] = mark
+        turn = assemble(self.contract, contents)
+        for sid, mark in markers.items():
+            self.assertNotIn(
+                mark, turn.system,
+                msg=f"non-static slot '{sid}' leaked into the system prompt")
+        # Sanity: the static slots ARE still in system (invariant has content).
+        self.assertIn("Iris", turn.system)
+
     def test_secret_blocks_assembly(self):
         contents = base_contents()
         contents["user_input"] = "tell me the sk-ABCDEFGHIJKLMNOPQRSTUV"

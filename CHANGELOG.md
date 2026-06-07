@@ -5,7 +5,29 @@ the contract or the hard-layer guarantees change in a way that
 breaks older contracts. Minor bumps add features. Patches are
 documentation and tests only.
 
-## v0.5.14 — current
+## v0.5.15 — current
+
+Turns the v0.5.14 fix into a defended invariant. Tests only.
+
+### Added
+- **`test_system_prompt_contains_only_static_slots`** — a categorical
+  invariant, not a by-name regression. It marks every non-`static` slot in
+  the contract (model-written memory/plan/scratchpad, tool output, history,
+  user input) and asserts none leak into `turn.system`. So if a future change
+  puts any model-written slot into the system tuple "because it's important",
+  this trips — reopening the injection-escalation path is caught by CI, not
+  just a regression on `long_term_mem`'s name.
+  Verified non-vacuous: re-adding `long_term_mem` to the system tuple makes it
+  fail with the leaked marker.
+
+### Invariant (now enforced)
+> The system prompt contains only contract-written *static* slots. All
+> model-written content (memory, plan, scratchpad) lives user-side, as data.
+
+### Tests
+236 stdlib `unittest` tests.
+
+## v0.5.14
 
 Hardening + housekeeping from an external code review.
 
